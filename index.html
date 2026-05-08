@@ -1,21 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Bunny Beauty · 记账本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--tp:#A89880;--tpl:#C4B5A2;--cr:#F5F0EA;--dk:#2C2520;--wh:#fff}
 html,body{height:100%;background:var(--tp)}
 #root{font-family:'Noto Sans SC',sans-serif;max-width:390px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--tp)}
-/* Header */
 #hdr{padding:1rem 1.2rem .6rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .lm{width:34px;height:34px;border:1px solid rgba(255,255,255,.4);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;flex-shrink:0}
-.lm s1{font-size:7px;letter-spacing:.1em;opacity:.7;font-family:'Playfair Display',serif;color:#fff;display:block}
-.lm s2{font-size:12px;font-family:'Playfair Display',serif;font-weight:500;color:#fff;display:block}
+.lm .l1{font-size:7px;letter-spacing:.1em;opacity:.7;font-family:'Playfair Display',serif;color:#fff;display:block}
+.lm .l2{font-size:12px;font-family:'Playfair Display',serif;font-weight:500;color:#fff;display:block}
 .brand{font-family:'Playfair Display',serif;font-size:15px;font-weight:400;color:#fff;margin-left:8px}
 .brand small{display:block;font-size:9px;letter-spacing:.12em;opacity:.6;text-transform:uppercase;font-family:'Noto Sans SC',sans-serif;margin-top:1px}
 .gear{background:none;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;flex-shrink:0}
-/* Pages */
 .pg{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .pg.gone{display:none!important}
-/* Home */
 .date-nav{display:flex;align-items:center;justify-content:space-between;padding:.2rem 1.2rem .7rem;color:#fff;flex-shrink:0}
 .date-nav button{background:none;border:none;color:rgba(255,255,255,.55);font-size:22px;cursor:pointer;padding:2px 10px;line-height:1}
 .dcenter .d{font-family:'Playfair Display',serif;font-size:17px;color:#fff;text-align:center}
@@ -35,15 +39,12 @@ html,body{height:100%;background:var(--tp)}
 .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:9px;letter-spacing:.05em;text-transform:uppercase}
 .tc{background:#EAF0E4;color:#5A7A45}.te{background:#E4EAF0;color:#45607A}.tr{background:#F0EAE4;color:#7A6045}.tn{background:#F0E4F0;color:#7A457A}
 .ramt{font-family:'Playfair Display',serif;font-size:16px;color:var(--dk);text-align:right}
-/* FAB */
 #fab{position:fixed;bottom:66px;left:50%;transform:translateX(-50%);background:var(--dk);color:#fff;border:none;border-radius:50px;padding:12px 26px;font-size:14px;font-weight:500;font-family:'Noto Sans SC',sans-serif;cursor:pointer;letter-spacing:.05em;box-shadow:0 4px 18px rgba(0,0,0,.25);z-index:5;white-space:nowrap}
-/* Nav */
 #nav{display:flex;background:#fff;border-top:.5px solid #EEE;flex-shrink:0;z-index:4}
 .ntab{flex:1;padding:.7rem;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;background:none;border:none;font-family:'Noto Sans SC',sans-serif}
 .ntab-i{font-size:17px;line-height:1}
 .ntab-l{font-size:10px;letter-spacing:.05em;color:#bbb}
 .ntab.on .ntab-l{color:var(--tp)}
-/* Form */
 #formPg{background:#fff;overflow-y:auto}
 .fi{padding:1.5rem 1.5rem 3rem;max-width:390px;margin:0 auto}
 .bk{background:none;border:none;color:#bbb;font-size:11px;cursor:pointer;padding:0;margin-bottom:1.4rem;display:flex;align-items:center;gap:4px;font-family:'Noto Sans SC',sans-serif}
@@ -68,7 +69,6 @@ input{width:100%;padding:13px 18px;border-radius:50px;border:1px solid #E0D8D0;f
 input:focus{border-color:var(--tp)}
 .ok-ring{width:54px;height:54px;border-radius:50%;border:1.5px solid var(--tp);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:var(--tp);font-size:20px}
 .err{color:#c0392b;font-size:11px;text-align:center;margin-top:6px}
-/* Stats */
 #statsPg{background:var(--cr);overflow-y:auto;padding:1rem 1.1rem 5rem;flex:1}
 .ptabs{display:flex;background:#fff;border-radius:50px;padding:4px;margin-bottom:1rem;gap:4px}
 .ptab{flex:1;padding:9px 4px;border-radius:50px;border:none;background:transparent;font-size:12px;font-family:'Noto Sans SC',sans-serif;color:#bbb;cursor:pointer;letter-spacing:.04em;transition:all .2s}
@@ -89,36 +89,26 @@ input:focus{border-color:var(--tp)}
 .bfill{height:100%;border-radius:4px;transition:width .6s ease}
 .bnum{font-size:12px;color:#bbb;width:28px;text-align:right;flex-shrink:0}
 </style>
-
+</head>
+<body>
 <div id="root">
   <div id="hdr">
     <div style="display:flex;align-items:center;gap:8px">
-      <div class="lm"><s1>00</s1><s2>BB</s2></div>
+      <div class="lm"><span class="l1">00</span><span class="l2">BB</span></div>
       <div class="brand">Bunny Beauty<small>记账本</small></div>
     </div>
     <button class="gear" id="gearBtn">⚙</button>
   </div>
-
-  <!-- Home -->
   <div id="homePg" class="pg">
     <div class="date-nav">
       <button id="prevDay">‹</button>
-      <div class="dcenter">
-        <div class="d" id="dDisp"></div>
-        <div class="ds" id="dSub"></div>
-      </div>
+      <div class="dcenter"><div class="d" id="dDisp"></div><div class="ds" id="dSub"></div></div>
       <button id="nextDay">›</button>
     </div>
     <div class="sumbar" id="sumbar"></div>
     <div class="rec-area" id="recList"></div>
   </div>
-
-  <!-- Form -->
-  <div id="formPg" class="pg gone">
-    <div class="fi" id="fi"></div>
-  </div>
-
-  <!-- Stats -->
+  <div id="formPg" class="pg gone"><div class="fi" id="fi"></div></div>
   <div id="statsPg" class="pg gone">
     <div class="ptabs" id="ptabs">
       <button class="ptab on" data-p="week">本周</button>
@@ -133,44 +123,41 @@ input:focus{border-color:var(--tp)}
     </div>
     <div id="sc"></div>
   </div>
-
   <div id="nav">
     <button class="ntab on" data-pg="homePg"><div class="ntab-i">📒</div><div class="ntab-l">记账</div></button>
     <button class="ntab" data-pg="statsPg"><div class="ntab-i">📊</div><div class="ntab-l">统计</div></button>
   </div>
 </div>
-
 <button id="fab">＋ 新增记录</button>
 
 <script>
 const AMTS=[20,40,45,50,60];
-let gsUrl='', fstep=1, curPg='homePg', statPer='week';
-let viewDate=new Date(), cStart=null, cEnd=null;
+let gsUrl='',fstep=1,curPg='homePg',statPer='week';
+let viewDate=new Date(),cStart=null,cEnd=null;
 let form={date:'',service:'',customer:'',amount:'',payment:''};
-
 const q=id=>document.getElementById(id);
 const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS=['日','一','二','三','四','五','六'];
+
+// ---- STORAGE (localStorage) ----
+function lsGet(k){try{return localStorage.getItem(k);}catch{return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch{}}
 
 function td(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function parseD(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function fmtD(d){return d.getDate()+' '+MS[d.getMonth()]+' '+d.getFullYear();}
 function isToday(d){return td(d)===td();}
-function dKey(d){return 'rec:'+td(d);}
+function dKey(d){return 'bunny:rec:'+td(d);}
 function nowT(){const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
 function amtN(s){return parseFloat((s||'').replace('$','').replace('¥',''))||0;}
 
-async function loadRecs(d){
-  try{const r=await window.storage.get(dKey(d));return r&&r.value?JSON.parse(r.value):[];}catch{return[];}
-}
-async function saveRec(d,rec){
-  const recs=await loadRecs(d);recs.push(rec);
-  try{await window.storage.set(dKey(d),JSON.stringify(recs));}catch{}
-}
-async function getRangeRecs(s,e){
+function loadRecs(d){try{const r=lsGet(dKey(d));return r?JSON.parse(r):[];}catch{return[];}}
+function saveRec(d,rec){const recs=loadRecs(d);recs.push(rec);lsSet(dKey(d),JSON.stringify(recs));}
+
+function getRangeRecs(s,e){
   const all=[];const d=new Date(s.getFullYear(),s.getMonth(),s.getDate());
   const end=new Date(e.getFullYear(),e.getMonth(),e.getDate());
-  while(d<=end){const recs=await loadRecs(new Date(d));recs.forEach(r=>all.push({...r,_d:td(new Date(d))}));d.setDate(d.getDate()+1);}
+  while(d<=end){loadRecs(new Date(d)).forEach(r=>all.push({...r,_d:td(new Date(d))}));d.setDate(d.getDate()+1);}
   return all;
 }
 function weekRange(d=new Date()){
@@ -184,7 +171,7 @@ function monthRange(d=new Date()){
 }
 
 function nav(pg){
-  document.querySelectorAll('.pg').forEach(p=>{p.classList.toggle('gone',p.id!==pg);});
+  document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('gone',p.id!==pg));
   q('nav').style.display=pg==='formPg'?'none':'flex';
   q('fab').style.display=pg==='homePg'?'block':'none';
   document.querySelectorAll('.ntab').forEach(t=>t.classList.toggle('on',t.dataset.pg===pg));
@@ -193,9 +180,8 @@ function nav(pg){
   if(pg==='statsPg')renderStats();
 }
 
-// ---- HOME ----
-async function renderHome(){
-  const recs=await loadRecs(viewDate);
+function renderHome(){
+  const recs=loadRecs(viewDate);
   q('dDisp').textContent=fmtD(viewDate);
   q('dSub').textContent=isToday(viewDate)?'今天':'历史记录';
   let cash=0,emt=0,rmb=0;
@@ -217,25 +203,17 @@ async function renderHome(){
     :'<div class="empty"><p>暂无记录</p><small>点击下方按钮新增</small></div>';
 }
 
-// ---- FORM ----
 function openForm(){form={date:td(viewDate),service:'',customer:'',amount:'',payment:''};fstep=1;nav('formPg');renderForm();}
-
 function mkProg(cur,tot=5){return '<div class="prog">'+Array.from({length:tot},(_,i)=>`<div class="dot${i<cur?' on':''}"></div>`).join('')+'</div>';}
 
 function renderForm(){
   let h='';
   if(fstep===1){
     h=`${mkProg(1)}<div class="slbl">Step 1 of 5 · 服务类型</div><h2>服务类型</h2>
-      <div class="g2">
-        <div class="pill fsb" data-v="Full Set">Full Set <span class="en">全套</span></div>
-        <div class="pill fsb" data-v="Refill">Refill <span class="en">补睫</span></div>
-      </div>`;
+      <div class="g2"><div class="pill fsb" data-v="Full Set">Full Set <span class="en">全套</span></div><div class="pill fsb" data-v="Refill">Refill <span class="en">补睫</span></div></div>`;
   }else if(fstep===2){
     h=`${mkProg(2)}<button class="bk" id="bkb">← 返回</button><div class="slbl">Step 2 of 5 · 客人类型</div><h2>客人类型</h2>
-      <div class="g2">
-        <div class="pill cub" data-v="New">New <span class="en">新客</span></div>
-        <div class="pill cub" data-v="Returning">Returning <span class="en">回头客</span></div>
-      </div>`;
+      <div class="g2"><div class="pill cub" data-v="New">New <span class="en">新客</span></div><div class="pill cub" data-v="Returning">Returning <span class="en">回头客</span></div></div>`;
   }else if(fstep===3){
     const ab=AMTS.map(a=>`<div class="ap amb" data-v="$${a}">$${a}</div>`).join('')+`<div class="ap" id="ctog">自定义</div>`;
     h=`${mkProg(3)}<button class="bk" id="bkb">← 返回</button><div class="slbl">Step 3 of 5 · 金额</div><h2>服务金额</h2>
@@ -275,19 +253,17 @@ function renderForm(){
     this.disabled=true;this.textContent='提交中...';q('serr').style.display='none';
     const rec={...form,time:nowT()};
     if(gsUrl){try{await fetch(gsUrl+'?'+new URLSearchParams(form).toString(),{mode:'no-cors'});}catch{}}
-    await saveRec(viewDate,rec);fstep=6;renderForm();
+    saveRec(viewDate,rec);fstep=6;renderForm();
   };
   if(q('reBtn'))q('reBtn').onclick=()=>{fstep=1;renderForm();};
   if(q('moreBtn'))q('moreBtn').onclick=()=>{form={date:td(viewDate),service:'',customer:'',amount:'',payment:''};fstep=1;renderForm();};
   if(q('doneBtn'))q('doneBtn').onclick=()=>nav('homePg');
 }
 
-// ---- STATS ----
 function barRows(items){
   const mx=Math.max(...items.map(i=>i.v),1);
   return items.map(i=>`<div class="brow"><div class="blbl">${i.l}</div><div class="btrack"><div class="bfill" style="width:${(i.v/mx*100).toFixed(1)}%;background:${i.c}"></div></div><div class="bnum">${i.v}</div></div>`).join('');
 }
-
 function svgBarChart(data){
   if(!data.length)return'<p style="color:#ccc;text-align:center;font-size:12px;padding:1rem 0">暂无数据</p>';
   const mx=Math.max(...data.map(d=>d.v),1);
@@ -304,14 +280,13 @@ function svgBarChart(data){
   return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible">${rects}${txts}${lbls}</svg>`;
 }
 
-async function renderStats(){
+function renderStats(){
   let s,e;
   if(statPer==='week')[s,e]=weekRange();
   else if(statPer==='month')[s,e]=monthRange();
   else if(cStart&&cEnd){s=cStart;e=cEnd;}
-  else{[s,e]=weekRange();}
-
-  const recs=await getRangeRecs(s,e);
+  else[s,e]=weekRange();
+  const recs=getRangeRecs(s,e);
   let cash=0,emt=0,rmb=0,fs=0,rf=0,nw=0,rt=0;
   recs.forEach(r=>{
     const a=amtN(r.amount);
@@ -319,41 +294,17 @@ async function renderStats(){
     if(r.service==='Full Set')fs++;else if(r.service==='Refill')rf++;
     if(r.customer==='New')nw++;else if(r.customer==='Returning')rt++;
   });
-
-  // Chart data
   let chartData=[];
   if(statPer==='week'){
-    // daily Mon-Sun
     const d=new Date(s.getFullYear(),s.getMonth(),s.getDate());
-    while(d<=e){
-      const key=td(new Date(d));
-      const cnt=recs.filter(r=>r._d===key).length;
-      chartData.push({l:DAYS[d.getDay()],v:cnt});
-      d.setDate(d.getDate()+1);
-    }
+    while(d<=e){const key=td(new Date(d));chartData.push({l:DAYS[d.getDay()],v:recs.filter(r=>r._d===key).length});d.setDate(d.getDate()+1);}
   }else{
-    // weekly
     const wmap={};
-    recs.forEach(r=>{
-      const pd=parseD(r._d),day=pd.getDay(),diff=day===0?-6:1-day;
-      const mon=new Date(pd.getFullYear(),pd.getMonth(),pd.getDate()+diff);
-      const k=td(mon);
-      wmap[k]=(wmap[k]||0)+1;
-    });
-    // fill all weeks in range
-    const d=new Date(s.getFullYear(),s.getMonth(),s.getDate());
-    const day=d.getDay(),diff=day===0?-6:1-day;
-    d.setDate(d.getDate()+diff);
-    while(d<=e){
-      const k=td(new Date(d));
-      chartData.push({l:`${d.getMonth()+1}/${d.getDate()}`,v:wmap[k]||0});
-      d.setDate(d.getDate()+7);
-    }
+    recs.forEach(r=>{const pd=parseD(r._d),day=pd.getDay(),diff=day===0?-6:1-day;const mon=new Date(pd.getFullYear(),pd.getMonth(),pd.getDate()+diff);const k=td(mon);wmap[k]=(wmap[k]||0)+1;});
+    const d=new Date(s.getFullYear(),s.getMonth(),s.getDate());const day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);
+    while(d<=e){const k=td(new Date(d));chartData.push({l:`${d.getMonth()+1}/${d.getDate()}`,v:wmap[k]||0});d.setDate(d.getDate()+7);}
   }
-
   const periodLbl=fmtD(s)+(td(s)===td(e)?'':` → ${fmtD(e)}`);
-  const chartTitle=statPer==='week'?'本周每日客人数':'每周客人数量';
-
   q('sc').innerHTML=`
     <div style="font-size:11px;color:var(--tpl);letter-spacing:.06em;text-align:center;margin-bottom:.9rem">${periodLbl}</div>
     <div class="krow">
@@ -365,21 +316,11 @@ async function renderStats(){
       <div class="kpi"><div class="kpi-v">$${emt.toFixed(0)}</div><div class="kpi-l">EMT</div></div>
       <div class="kpi"><div class="kpi-v">¥${rmb.toFixed(0)}</div><div class="kpi-l">RMB</div></div>
     </div>
-    <div class="scard">
-      <div class="stitle">服务类型</div>
-      ${barRows([{l:'Full Set',v:fs,c:'#2C2520'},{l:'Refill',v:rf,c:'#A89880'}])}
-    </div>
-    <div class="scard">
-      <div class="stitle">客人类型</div>
-      ${barRows([{l:'新客 New',v:nw,c:'#7A9B76'},{l:'回头客',v:rt,c:'#A89880'}])}
-    </div>
-    <div class="scard">
-      <div class="stitle">${chartTitle}</div>
-      ${svgBarChart(chartData)}
-    </div>`;
+    <div class="scard"><div class="stitle">服务类型</div>${barRows([{l:'Full Set',v:fs,c:'#2C2520'},{l:'Refill',v:rf,c:'#A89880'}])}</div>
+    <div class="scard"><div class="stitle">客人类型</div>${barRows([{l:'新客 New',v:nw,c:'#7A9B76'},{l:'回头客',v:rt,c:'#A89880'}])}</div>
+    <div class="scard"><div class="stitle">${statPer==='week'?'本周每日客人数':'每周客人数量'}</div>${svgBarChart(chartData)}</div>`;
 }
 
-// ---- SETTINGS ----
 function openSettings(){
   nav('formPg');
   q('fi').innerHTML=`
@@ -388,23 +329,15 @@ function openSettings(){
     <p style="font-size:12px;color:#aaa;text-align:center;margin-bottom:1.2rem">Google Apps Script URL（选填）<br>不填也可本地使用</p>
     <input type="text" id="urlIn" placeholder="https://script.google.com/macros/s/..." value="${gsUrl}"/>
     <button class="cta cta-p" id="saveUrl">保存</button>
-    <div id="uerr" class="err" style="display:none">请输入正确的 URL</div>
-    <div style="margin:1.2rem 0;height:.5px;background:#EEE"></div>
-    <p style="font-size:11px;color:#bbb;line-height:2;text-align:center">
-      <a href="https://script.google.com" target="_blank" style="color:var(--tp)">script.google.com</a> 新建项目<br>
-      粘贴代码 → 部署为网页应用<br>
-      执行身份：我自己 · 访问者：所有人
-    </p>`;
+    <div id="uerr" class="err" style="display:none">请输入正确的 URL</div>`;
   q('setBk').onclick=()=>nav('homePg');
-  q('saveUrl').onclick=async function(){
+  q('saveUrl').onclick=function(){
     const v=(q('urlIn').value||'').trim();
     if(v&&!v.startsWith('http')){q('uerr').style.display='block';return;}
-    try{await window.storage.set('bunny_gs_url',v||'');}catch{}
-    gsUrl=v;nav('homePg');
+    lsSet('bunny_gs_url',v||'');gsUrl=v;nav('homePg');
   };
 }
 
-// ---- EVENTS ----
 q('gearBtn').addEventListener('click',openSettings);
 q('fab').addEventListener('click',openForm);
 q('prevDay').addEventListener('click',()=>{viewDate.setDate(viewDate.getDate()-1);renderHome();});
@@ -421,9 +354,9 @@ q('cQuery').addEventListener('click',()=>{
   if(s&&e){cStart=parseD(s);cEnd=parseD(e);renderStats();}
 });
 
-// ---- INIT ----
-(async()=>{
-  try{const r=await window.storage.get('bunny_gs_url');if(r&&r.value)gsUrl=r.value;}catch{}
-  nav('homePg');
-})();
+// Init
+gsUrl=lsGet('bunny_gs_url')||'';
+nav('homePg');
 </script>
+</body>
+</html>
