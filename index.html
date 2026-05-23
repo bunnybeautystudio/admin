@@ -368,6 +368,24 @@ async function syncSheets(){
   }catch(e){status('❌ 同步失败','err');}
 }
 
+// ── RESTORE FROM SHEETS ──
+async function restoreFromSheets(){
+  if(!gsUrl){status('请先设置 Apps Script URL','err');openSettings();return;}
+  status('从 Sheets 读取中...','info');
+  try{
+    const res=await fetch(gsUrl+'?action=read',{redirect:'follow'});
+    const data=await res.json();
+    if(!Array.isArray(data))throw new Error('格式错误');
+    ALL=data;
+    await saveAll();
+    renderHome();
+    closeSheet();
+    status('✅ 已从 Sheets 恢复 '+ALL.length+' 条记录','ok');
+  }catch(e){
+    status('❌ 恢复失败，请确认 Apps Script 已更新并重新部署','err');
+  }
+}
+
 // ── SCREEN ──
 function showPg(id){
   document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('on',p.id===id));
@@ -529,7 +547,10 @@ function openSettings(){
     <p style="font-size:11px;font-weight:500;color:var(--dk);margin-bottom:5px">Google Apps Script URL</p>
     <p style="font-size:11px;color:#aaa;margin-bottom:8px">填入后点「☁ 同步」即可同步到 Sheets</p>
     <input class="ainp" type="text" id="urlIn" placeholder="https://script.google.com/macros/s/..." value="${gsUrl}" style="width:100%;margin-bottom:10px"/>
-    <button class="bbtn p" id="saveUrl">保存 URL</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:0">
+      <button class="bbtn p" id="saveUrl" style="margin-top:0">保存 URL</button>
+      <button class="bbtn g" id="restoreBtn" style="margin-top:0;font-size:12px">⬇ 从 Sheets 恢复</button>
+    </div>
     <div id="uerr" style="color:var(--rd);font-size:11px;margin-top:4px;display:none">URL 格式不正确</div>
     <div style="height:1px;background:#eee;margin:16px 0"></div>
     <p style="font-size:11px;font-weight:500;color:var(--dk);margin-bottom:5px">📦 数据备份 / 恢复</p>
@@ -546,6 +567,7 @@ function openSettings(){
     try{await window.storage.set('bunny_gsurl',v);}catch{}
     gsUrl=v;status('设置已保存','ok');closeSheet();
   };
+  document.getElementById('restoreBtn').onclick=restoreFromSheets;
   document.getElementById('copyBk').onclick=function(){
     const t=encode(ALL);
     document.getElementById('bkTxt').value=t;
