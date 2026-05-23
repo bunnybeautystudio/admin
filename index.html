@@ -334,12 +334,294 @@ const nowT=()=>{const n=new Date();return pad(n.getHours())+':'+pad(n.getMinutes
 const amtN=s=>parseFloat((s||'').replace(/[$¥+\-]/g,''))||0;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const dim=d=>new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
-const fmt$=n=>'$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const fmt$=n=>'
+
+async function rng(s,e){const all=[],d=new Date(s.getFullYear(),s.getMonth(),s.getDate()),end=new Date(e.getFullYear(),e.getMonth(),e.getDate());while(d<=end){(await load(new Date(d))).forEach(r=>all.push({...r,_d:td(new Date(d))}));d.setDate(d.getDate()+1);}return all;}
+async function moRecs(d){const all=[],n=dim(d);for(let i=1;i<=n;i++){const dd=new Date(d.getFullYear(),d.getMonth(),i);(await load(dd)).forEach(r=>all.push({...r,_d:td(dd)}));}return all;}
+
+async function getPR(){
+  if(period==='today'){return(await load(viewDate)).map(x=>({...x,_d:td(viewDate)}));}
+  const[s,e]=period==='week'?wkR(viewDate):moR(viewDate);return await rng(s,e);
+}
+function totals(recs){
+  let inc=0,exp=0,cash=0,emt=0,rmb=0;const bySvc={},byCat={};
+  recs.forEach(r=>{if(r.type==='expense'){exp+=amtN(r.amount);byCat[r.category||'其他']=(byCat[r.category||'其他']||0)+amtN(r.amount);}
+  else{const a=amtN(r.amount);inc+=a;if(r.payment==='Cash')cash+=a;else if(r.payment==='EMT')emt+=a;else if(r.payment==='RMB')rmb+=a;bySvc[r.service||'服务']=(bySvc[r.service||'服务']||0)+a;}});
+  return{inc,exp,cash,emt,rmb,bal:inc-exp,bySvc,byCat};
+}
+
+// ── SCREEN ──
+function showSc(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.querySelectorAll('.btab').forEach(t=>t.classList.toggle('on',t.dataset.sc===id));
+  q('fab').style.display=id==='home'?'block':'none';
+  if(id==='home')renderHome();
+  if(id==='stats')renderStats();
+  if(id==='ledger')renderLedger();
+}
+
+// ── DIALOG ──
+function openDlg(desc,cb){q('dlgDesc').textContent=desc;q('dlg').classList.add('on');delCb=cb;}
+q('dlgNo').onclick=q('dlgBg').onclick=()=>q('dlg').classList.remove('on');
+q('dlgYes').onclick=()=>{q('dlg').classList.remove('on');delCb&&delCb();};
+
+// ── HOME ──
+async function renderHome(){
+  const recs=await getPR();
+  if(period==='today'){
+    q('dayDisp').textContent=fmtD(viewDate);
+    q('daySub').textContent=isToday(viewDate)?'今天':'历史';
+    q('dayNav').style.display='flex';
+  }else{
+    const[s,e]=period==='week'?wkR(viewDate):moR(viewDate);
+    q('dayDisp').textContent=period==='week'?`${fmtS(td(s))} — ${fmtS(td(e))}`:mthL(viewDate);
+    q('daySub').textContent=period==='week'?'本周':'本月';
+    q('dayNav').style.display='none';
+  }
+  const{inc,exp,cash,emt}=totals(recs);
+  const cnt=recs.filter(r=>r.type!=='expense').length;
+  q('sumCards').innerHTML=`
+    <div class="sum-card"><div class="sc-l">收入</div><div class="sc-v">${fmt$(inc)}</div><div class="sc-sub">${cnt}笔 · Cash${fmt$(cash)}</div></div>
+    <div class="sum-card"><div class="sc-l">支出</div><div class="sc-v ${exp>0?'red':''}">${fmt$(exp)}</div><div class="sc-sub">结余 ${fmt$(inc-exp)}</div></div>`;
+  q('recSec').textContent=recs.length?`${recs.length} 条记录`:'';
+  if(!recs.length){q('recList').innerHTML='<div class="empty-state"><div class="ei">✨</div><p>暂无记录</p><small>点击 ＋ 开始</small></div>';return;}
+  const sorted=[...recs].sort((a,b)=>(b._d||'').localeCompare(a._d||'')||(b.time||'').localeCompare(a.time||''));
+  q('recList').innerHTML=sorted.map(r=>{
+    const ie=r.type==='expense';
+    const sub=ie?`<span class="bdg bo">${r.payment}</span>${r.note?'<span class="rec-time">'+r.note+'</span>':''}`:`<span class="bdg ${PB[r.payment]||'bo'}">${r.payment}</span>${r.customer==='New'?'<span class="bdg bn">新客</span>':''}`;
+    const dl=r._d&&r._d!==td(viewDate)?`<span class="rec-time">${fmtS(r._d)}</span>`:'';
+    return`<div class="rec-item">
+      <div class="rec-icon ${ie?'exp':'inc'}">${ie?'💸':'💰'}</div>
+      <div class="rec-body">
+        <div class="rec-title">${ie?(r.category||'支出'):r.service+' · '+r.customer}</div>
+        <div class="rec-meta">${dl}${r.time?`<span class="rec-time">${r.time}</span>`:''}${sub}</div>
+      </div>
+      <div class="rec-right">
+        <div class="rec-amt ${ie?'exp':'inc'}">${ie?'-':''}${r.amount}</div>
+        <div class="rec-acts">
+          <button class="ra e" data-id="${r._id}" data-d="${r._d}" data-a="edit">✏️</button>
+          <button class="ra d" data-id="${r._id}" data-d="${r._d}" data-a="del">×</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  q('recList').querySelectorAll('.ra').forEach(b=>b.addEventListener('click',async function(){
+    const id=this.dataset.id,act=this.dataset.a,d=parseD(this.dataset.d||td(viewDate));
+    const rec=(await load(d)).find(r=>r._id===id);if(!rec)return;
+    if(act==='del')openDlg(`删除 ${rec.type==='expense'?rec.category:rec.service} ${rec.amount}？`,async()=>{await delR(d,id);await renderHome();});
+    else{editMode=true;editId=id;editDate=new Date(d);form={...rec};fstep=1;openForm();}
+  }));
+}
+
+// ── FORM ──
+function openForm(){q('formSheet').classList.add('on');renderForm();}
+function closeForm(){q('formSheet').classList.remove('on');setTimeout(()=>{q('shBody').innerHTML='';editMode=false;},350);}
+q('shBg').addEventListener('click',closeForm);
+const isInc=()=>form.type==='income';
+const mkProg=(c,t)=>'<div class="s-prog">'+Array.from({length:t},(_,i)=>`<div class="sp${i<c?' on':''}"></div>`).join('')+'</div>';
+const cfCard=()=>{
+  const rows=isInc()?[['服务',form.service],['客人',form.customer],['金额',form.amount],['付款',form.payment]]:[['类别',form.category],['金额',form.amount],['付款',form.payment]];
+  return`<div class="cf-card">${rows.map(([l,v])=>`<div class="cf-row"><span class="cf-l">${l}</span><span class="cf-v">${v}</span></div>`).join('')}</div>`;
+};
+
+function renderForm(){
+  const hdr=`<div class="sh-handle"></div><div class="sh-hdr">${fstep>0?'<button class="back-lnk" id="fBk">← 上一步</button>':'<div></div>'}<button class="x-btn" id="fX">×</button></div>`;
+  let body='';
+  if(fstep===0){
+    body=`<div class="s-q">选择类型</div><div class="s-title">这笔是？</div>
+    <div class="type-grid">
+      <div class="type-card ${form.type==='income'?'i':''}" id="tInc"><div class="tc-i">💰</div><div class="tc-l">收入</div><div class="tc-s">服务收款</div></div>
+      <div class="type-card ${form.type==='expense'?'e':''}" id="tExp"><div class="tc-i">💸</div><div class="tc-l">支出</div><div class="tc-s">材料·租金·其他</div></div>
+    </div>`;
+  }else if(isInc()){
+    if(fstep===1)body=`${mkProg(1,5)}<div class="s-q">Step 1 · 服务类型</div><div class="s-title">做了什么？</div>
+      <div class="ch-row">
+        <div class="ch${form.service==='Full Set'?' on':''}" data-k="svc" data-v="Full Set"><div class="ch-m">Full Set</div><div class="ch-s">全套</div></div>
+        <div class="ch${form.service==='Refill'?' on':''}" data-k="svc" data-v="Refill"><div class="ch-m">Refill</div><div class="ch-s">补睫</div></div>
+      </div>`;
+    else if(fstep===2)body=`${mkProg(2,5)}<div class="s-q">Step 2 · 客人类型</div><div class="s-title">新客还是回头客？</div>
+      <div class="ch-row">
+        <div class="ch${form.customer==='New'?' on':''}" data-k="cu" data-v="New"><div class="ch-m">New 新客</div><div class="ch-s">第一次</div></div>
+        <div class="ch${form.customer==='Returning'?' on':''}" data-k="cu" data-v="Returning"><div class="ch-m">Returning</div><div class="ch-s">回头客</div></div>
+      </div>`;
+    else if(fstep===3){const sc=form.amount&&!AI.map(a=>'$'+a).includes(form.amount);
+      body=`${mkProg(3,5)}<div class="s-q">Step 3 · 金额</div><div class="s-title">收了多少？</div>
+      <div class="amt-grid">${AI.map(a=>`<div class="amt-pill${form.amount==='$'+a?' on':''}" data-k="amt" data-v="$${a}">$${a}</div>`).join('')}<div class="amt-pill${sc?' on':''}" id="ctog">自定义</div></div>
+      <div id="cbox" style="display:${sc?'flex':'none'}" class="cust-row"><input class="a-inp" type="number" id="cAmt" placeholder="金额" value="${sc?amtN(form.amount):''}"/><button class="big-btn p" style="width:auto;padding:13px 16px;margin-top:0" id="cOk">✓</button></div>`;}
+    else if(fstep===4)body=`${mkProg(4,5)}<div class="s-q">Step 4 · 付款</div><div class="s-title">怎么付的？</div>
+      <div class="pay-row">${PAYS.map(p=>`<div class="pay-btn${form.payment===p?' on':''}" data-k="pay" data-v="${p}"><div class="pb-m">${p}</div><div class="pb-s">${PCN[p]}</div></div>`).join('')}</div>`;
+    else if(fstep===5)body=`${mkProg(5,5)}<div class="s-title">确认收入</div>${cfCard()}
+      <button class="big-btn p" id="subBtn">${editMode?'✓ 保存修改':'✓ 提交记录'}</button>
+      <button class="big-btn g" id="reBtn">重新填写</button>`;
+  }else{
+    if(fstep===1)body=`${mkProg(1,4)}<div class="s-q">Step 1 · 类别</div><div class="s-title">花在哪里？</div>
+      <div class="cat-list">${CATS.map(([ic,c])=>`<div class="cat-item${form.category===c?' on':''}" data-k="cat" data-v="${c}">${ic} ${c}</div>`).join('')}</div>`;
+    else if(fstep===2){const sc=form.amount&&!AE.map(a=>'$'+a).includes(form.amount);
+      body=`${mkProg(2,4)}<div class="s-q">Step 2 · 金额</div><div class="s-title">花了多少？</div>
+      <div class="amt-grid">${AE.map(a=>`<div class="amt-pill${form.amount==='$'+a?' on':''}" data-k="amt" data-v="$${a}">$${a}</div>`).join('')}<div class="amt-pill${sc?' on':''}" id="ctog">自定义</div></div>
+      <div id="cbox" style="display:${sc?'flex':'none'}" class="cust-row"><input class="a-inp" type="number" id="cAmt" placeholder="金额" value="${sc?amtN(form.amount):''}"/><button class="big-btn p" style="width:auto;padding:13px 16px;margin-top:0" id="cOk">✓</button></div>`;}
+    else if(fstep===3)body=`${mkProg(3,4)}<div class="s-q">Step 3 · 付款</div><div class="s-title">怎么付的？</div>
+      <div class="pay-row">${PAYS.map(p=>`<div class="pay-btn${form.payment===p?' on':''}" data-k="pay" data-v="${p}"><div class="pb-m">${p}</div><div class="pb-s">${PCN[p]}</div></div>`).join('')}</div>`;
+    else if(fstep===4)body=`${mkProg(4,4)}<div class="s-title">确认支出</div>${cfCard()}
+      <div style="margin-bottom:12px"><div style="font-size:11px;color:#bbb;margin-bottom:6px">备注（选填）</div><textarea class="note-inp" id="noteIn" placeholder="例：购入散毛">${form.note||''}</textarea></div>
+      <button class="big-btn p" id="subBtn">${editMode?'✓ 保存修改':'✓ 提交记录'}</button>
+      <button class="big-btn g" id="reBtn">重新填写</button>`;
+  }
+  if(fstep===99)body=`<div class="ok-view">
+    <div class="ok-c">✓</div>
+    <div class="ok-amt" style="color:${isInc()?'var(--dk)':'var(--red)'}">${isInc()?'':'-'}${form.amount}</div>
+    <div class="ok-sub">${isInc()?form.service+' · '+form.customer:form.category} · ${form.payment}</div>
+    ${!editMode?'<button class="big-btn p" id="moreBtn">继续记录</button>':''}
+    <button class="big-btn g" id="doneBtn">完成</button>
+  </div>`;
+
+  q('shBody').innerHTML=hdr+body;
+  const sb=q('shBody');
+  if(q('fX'))q('fX').onclick=closeForm;
+  if(q('fBk'))q('fBk').onclick=()=>{fstep--;renderForm();};
+  if(q('tInc'))q('tInc').onclick=()=>{form.type='income';fstep=1;renderForm();};
+  if(q('tExp'))q('tExp').onclick=()=>{form.type='expense';fstep=1;renderForm();};
+  sb.querySelectorAll('[data-k="svc"]').forEach(el=>el.addEventListener('click',function(){form.service=this.dataset.v;fstep++;renderForm();}));
+  sb.querySelectorAll('[data-k="cu"]').forEach(el=>el.addEventListener('click',function(){form.customer=this.dataset.v;fstep++;renderForm();}));
+  sb.querySelectorAll('[data-k="cat"]').forEach(el=>el.addEventListener('click',function(){form.category=this.dataset.v;fstep++;renderForm();}));
+  sb.querySelectorAll('[data-k="amt"]').forEach(el=>el.addEventListener('click',function(){form.amount=this.dataset.v;fstep++;renderForm();}));
+  sb.querySelectorAll('[data-k="pay"]').forEach(el=>el.addEventListener('click',function(){form.payment=this.dataset.v;fstep++;renderForm();}));
+  if(q('ctog'))q('ctog').onclick=()=>{q('ctog').style.display='none';q('cbox').style.display='flex';q('cAmt').focus();};
+  if(q('cOk'))q('cOk').onclick=()=>{const v=q('cAmt').value;if(v){form.amount='$'+v;fstep++;renderForm();}};
+  if(q('subBtn'))q('subBtn').onclick=async function(){
+    this.disabled=true;this.textContent='保存中...';
+    if(q('noteIn'))form.note=q('noteIn').value;
+    const d=editMode?editDate:viewDate;
+    const rec={...form,date:td(d),_d:td(d),time:nowT()};
+    if(gsUrl){try{await fetch(gsUrl+'?'+new URLSearchParams(rec).toString(),{mode:'no-cors'});}catch{}}
+    if(editMode)await updR(editDate,editId,rec);
+    else await addR(viewDate,rec);
+    await renderHome();
+    fstep=99;editMode=false;renderForm();
+  };
+  if(q('reBtn'))q('reBtn').onclick=()=>{fstep=1;renderForm();};
+  if(q('moreBtn'))q('moreBtn').onclick=()=>{form={type:'',service:'',customer:'',category:'',note:'',amount:'',payment:''};fstep=0;renderForm();};
+  if(q('doneBtn'))q('doneBtn').onclick=closeForm;
+}
+
+// ── STATS ──
+const barRows=items=>{const mx=Math.max(...items.map(i=>i.v),1);return items.map(i=>`<div class="bar-row"><div class="bar-lbl">${i.l}</div><div class="bar-track"><div class="bar-fill" style="width:${(i.v/mx*100).toFixed(1)}%;background:${i.c}"></div></div><div class="bar-num">${i.v}</div></div>`).join('');};
+const svgBar=data=>{if(!data.length)return'<p style="color:#ccc;text-align:center;font-size:11px;padding:10px 0">暂无数据</p>';const mx=Math.max(...data.map(d=>d.v),1),W=300,H=86,p=10,bw=Math.min(26,(W-p*2)/data.length-4),gap=(W-p*2)/data.length;let r='',t='',l='';data.forEach((d,i)=>{const bh=Math.max((d.v/mx)*(H-26),d.v?2:0),x=p+i*gap+gap/2-bw/2,y=H-16-bh;r+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${bh.toFixed(1)}" rx="4" fill="#A89880"/>`;if(d.v)t+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="8" fill="#A89880">${d.v}</text>`;l+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-1}" text-anchor="middle" font-size="8" fill="#bbb">${d.l}</text>`;});return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible">${r}${t}${l}</svg>`;};
+
+async function renderStats(){
+  const sp=document.querySelector('.per-tab.on')?.dataset.p||'week';
+  let s,e;if(sp==='week')[s,e]=wkR();else if(sp==='month')[s,e]=moR();else if(cStart&&cEnd){s=cStart;e=cEnd;}else[s,e]=wkR();
+  const recs=await rng(s,e),incR=recs.filter(r=>r.type!=='expense');
+  const{inc:ti,exp:te,cash,emt,rmb}=totals(recs);
+  let fs=0,rf=0,nw=0,rt=0;incR.forEach(r=>{if(r.service==='Full Set')fs++;else rf++;if(r.customer==='New')nw++;else rt++;});
+  const ebc={};CATS.forEach(([,c])=>ebc[c]=0);recs.filter(r=>r.type==='expense').forEach(r=>{ebc[r.category||'其他']=(ebc[r.category||'其他']||0)+amtN(r.amount);});
+  let cd=[];
+  if(sp==='week'){const d=new Date(s.getFullYear(),s.getMonth(),s.getDate());while(d<=e){const k=td(new Date(d));cd.push({l:DAYS[d.getDay()],v:recs.filter(r=>r._d===k).length});d.setDate(d.getDate()+1);}
+  }else{const wm={};recs.forEach(r=>{const pd=parseD(r._d),dy=pd.getDay(),df=dy===0?-6:1-dy,mn=new Date(pd.getFullYear(),pd.getMonth(),pd.getDate()+df),k=td(mn);wm[k]=(wm[k]||0)+1;});const d=new Date(s),dy=d.getDay(),df=dy===0?-6:1-dy;d.setDate(d.getDate()+df);while(d<=e){cd.push({l:`${d.getMonth()+1}/${d.getDate()}`,v:wm[td(new Date(d))]||0});d.setDate(d.getDate()+7);}}
+  const expR=Object.entries(ebc).filter(([,v])=>v>0).map(([l,v])=>({l,v,c:'var(--red)'}));
+  q('sContent').innerHTML=`<div style="font-size:10px;color:var(--tpl);text-align:center;margin-bottom:10px">${fmtD(s)}${td(s)===td(e)?'':' → '+fmtD(e)}</div>
+    <div class="kpi-row"><div class="kpi"><div class="kpi-v" style="color:var(--grn)">${fmt$(ti)}</div><div class="kpi-l">总收入</div></div><div class="kpi"><div class="kpi-v" style="color:var(--red)">${fmt$(te)}</div><div class="kpi-l">总支出</div></div><div class="kpi"><div class="kpi-v">${fmt$(ti-te)}</div><div class="kpi-l">结余</div></div></div>
+    <div class="kpi-row"><div class="kpi"><div class="kpi-v">${fmt$(cash)}</div><div class="kpi-l">Cash</div></div><div class="kpi"><div class="kpi-v">${fmt$(emt)}</div><div class="kpi-l">EMT</div></div><div class="kpi"><div class="kpi-v">¥${rmb.toFixed(0)}</div><div class="kpi-l">RMB</div></div></div>
+    <div class="stat-card"><div class="stat-ttl">服务类型</div>${incR.length?barRows([{l:'Full Set',v:fs,c:'#2C2520'},{l:'Refill',v:rf,c:'#A89880'}]):'<p style="color:#ccc;font-size:11px;text-align:center">暂无</p>'}</div>
+    <div class="stat-card"><div class="stat-ttl">客人类型</div>${incR.length?barRows([{l:'新客',v:nw,c:'#7A9B76'},{l:'回头客',v:rt,c:'#A89880'}]):'<p style="color:#ccc;font-size:11px;text-align:center">暂无</p>'}</div>
+    ${expR.length?`<div class="stat-card"><div class="stat-ttl">支出分类</div>${barRows(expR)}</div>`:''}
+    <div class="stat-card"><div class="stat-ttl">${sp==='week'?'本周每日':'每周'}客人数</div>${svgBar(cd)}</div>`;
+}
+
+// ── BALANCE SHEET ──
+async function renderLedger(){
+  q('ledMth').textContent=mthL(ledDate);
+  const recs=await moRecs(ledDate);
+  const{inc,exp,cash,emt,rmb,bal,bySvc,byCat}=totals(recs);
+  const now=new Date();
+  if(!recs.length){q('bsContent').innerHTML=`<div class="bs"><div class="bs-hdr"><div class="bs-co">Bunny Beauty Studio</div><div class="bs-ti">Income & Expense Statement</div><div class="bs-pe">${mthL(ledDate)}</div></div><div style="text-align:center;padding:50px 0"><div style="font-size:42px;margin-bottom:12px">📋</div><p style="font-family:'Playfair Display',serif;font-style:italic;color:#ccc">本月暂无记录</p></div></div>`;return;}
+  const iRows=Object.entries(bySvc).map(([k,v])=>`<div class="bs-row"><span class="bs-lbl i">${k}</span><span class="bs-val">${fmt$(v)}</span></div>`).join('');
+  const eRows=exp>0?Object.entries(byCat).filter(([,v])=>v>0).map(([k,v])=>`<div class="bs-row"><span class="bs-lbl i">${k}</span><span class="bs-val" style="color:var(--red)">${fmt$(v)}</span></div>`).join(''):`<div class="bs-row"><span class="bs-lbl i" style="color:#ccc;font-style:italic">暂无支出</span><span class="bs-val" style="color:#ccc">—</span></div>`;
+  q('bsContent').innerHTML=`<div class="bs">
+    <div class="bs-hdr"><div class="bs-co">Bunny Beauty Studio</div><div class="bs-ti">Income & Expense Statement</div><div class="bs-pe">${mthL(ledDate)} · As of ${now.getDate()} ${MS[now.getMonth()]} ${now.getFullYear()}</div></div>
+    <div class="bs-sec"><div class="bs-stl">INCOME &nbsp;收入</div>${iRows}<div class="bs-sub"><span class="bs-lbl">Total Income &nbsp;总收入</span><span class="bs-val">${fmt$(inc)}</span></div>
+    <div class="pay-chips"><div class="chip">Cash <span>${fmt$(cash)}</span></div><div class="chip">EMT <span>${fmt$(emt)}</span></div><div class="chip">RMB <span>¥${rmb.toFixed(2)}</span></div></div></div>
+    <div class="bs-div"></div>
+    <div class="bs-sec"><div class="bs-stl">EXPENSES &nbsp;支出</div>${eRows}<div class="bs-sub"><span class="bs-lbl">Total Expenses &nbsp;总支出</span><span class="bs-val" style="color:var(--red)">${fmt$(exp)}</span></div></div>
+    <div class="bs-div"></div>
+    <div class="bs-tot"><span class="bs-lbl" style="padding-left:0">NET BALANCE &nbsp;结余</span><span class="bs-val ${bal>=0?'pos':'neg'}">${bal>=0?'':'-'}${fmt$(Math.abs(bal))}</span></div>
+    <div class="bs-sec" style="margin-top:14px"><div class="bs-stl">PAYMENT SUMMARY</div>
+      <div class="bs-row"><span class="bs-lbl i">Cash 现金</span><span class="bs-val">${fmt$(cash)}</span></div>
+      <div class="bs-row"><span class="bs-lbl i">EMT 转账</span><span class="bs-val">${fmt$(emt)}</span></div>
+      <div class="bs-row"><span class="bs-lbl i">RMB 人民币</span><span class="bs-val">¥${rmb.toFixed(2)}</span></div>
+      <div class="bs-sub"><span class="bs-lbl">Total CAD Received</span><span class="bs-val">${fmt$(cash+emt)}</span></div>
+    </div>
+    <div class="bs-note">${recs.length} transactions · ${mthL(ledDate)}</div>
+  </div>`;
+}
+
+// Excel
+q('dlBtn').addEventListener('click',async()=>{
+  const recs=await moRecs(ledDate),{inc,exp,bal,cash,emt,rmb}=totals(recs);
+  const sorted=[...recs].sort((a,b)=>a._d.localeCompare(b._d));
+  const data=[['Bunny Beauty Studio'],['Income & Expense Statement',`Period: ${mthL(ledDate)}`],[''],
+    ['Date','Type','Item','Client/Note','Amount','Payment'],
+    ...sorted.map(r=>{const ie=r.type==='expense';return[r._d,ie?'Expense':'Income',ie?(r.category||''):r.service,ie?(r.note||''):(r.customer||''),ie?-amtN(r.amount):amtN(r.amount),r.payment||''];}),
+    [''],['SUMMARY'],['Total Income','',inc],['Total Expenses','',exp],['Net Balance','',bal],
+    [''],['Cash','',cash],['EMT','',emt],['RMB (¥)','',rmb]];
+  const ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=[{wch:12},{wch:8},{wch:14},{wch:14},{wch:10},{wch:8}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,mthL(ledDate));
+  const arr=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  const blob=new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`BunnyBeauty_${ledDate.getFullYear()}-${pad(ledDate.getMonth()+1)}.xlsx`;a.click();
+});
+
+q('syncBtn').addEventListener('click',async()=>{
+  if(!gsUrl){alert('请先在设置中填入 Google Apps Script URL');return;}
+  const recs=await moRecs(ledDate);q('syncBtn').textContent='同步中...';
+  let ok=0;for(const r of recs){try{await fetch(gsUrl+'?'+new URLSearchParams(r).toString(),{mode:'no-cors'});ok++;}catch{}}
+  q('syncBtn').textContent=`✓ ${ok}条`;setTimeout(()=>{q('syncBtn').textContent='☁ Sheets';},2500);
+});
+
+// Settings
+function openSettings(){
+  q('formSheet').classList.add('on');
+  q('shBody').innerHTML=`<div class="sh-handle"></div><div class="sh-hdr"><div></div><button class="x-btn" id="fX">×</button></div>
+    <div class="s-title" style="margin-bottom:8px">设置</div>
+    <p style="font-size:12px;color:#aaa;margin-bottom:14px">Google Apps Script URL（选填）</p>
+    <input class="a-inp" type="text" id="urlIn" placeholder="https://script.google.com/macros/s/..." value="${gsUrl}" style="width:100%;margin-bottom:12px"/>
+    <button class="big-btn p" id="saveUrl">保存</button>
+    <div style="color:var(--red);font-size:11px;text-align:center;margin-top:6px;display:none" id="uerr">URL 格式不正确</div>`;
+  q('fX').onclick=closeForm;
+  q('saveUrl').onclick=async function(){const v=(q('urlIn').value||'').trim();if(v&&!v.startsWith('http')){q('uerr').style.display='block';return;}try{await window.storage.set('bunny_gs_url',v||'');}catch{}gsUrl=v;closeForm();};
+}
+
+// Events
+q('settingsBtn').addEventListener('click',openSettings);
+q('fab').addEventListener('click',()=>{editMode=false;editId=null;editDate=null;form={type:'',service:'',customer:'',category:'',note:'',amount:'',payment:''};fstep=0;openForm();});
+q('prevDay').addEventListener('click',()=>{viewDate.setDate(viewDate.getDate()-1);renderHome();});
+q('nextDay').addEventListener('click',()=>{viewDate.setDate(viewDate.getDate()+1);renderHome();});
+q('ledPrev').addEventListener('click',()=>{ledDate.setMonth(ledDate.getMonth()-1);renderLedger();});
+q('ledNext').addEventListener('click',()=>{ledDate.setMonth(ledDate.getMonth()+1);renderLedger();});
+document.querySelectorAll('.btab').forEach(t=>t.addEventListener('click',function(){showSc(this.dataset.sc);}));
+document.querySelectorAll('#ptog .pt').forEach(t=>t.addEventListener('click',function(){period=this.dataset.p;document.querySelectorAll('#ptog .pt').forEach(p=>p.classList.toggle('on',p===this));renderHome();}));
+document.querySelectorAll('.per-tab').forEach(t=>t.addEventListener('click',function(){document.querySelectorAll('.per-tab').forEach(p=>p.classList.toggle('on',p===this));q('dr').style.display=this.dataset.p==='custom'?'flex':'none';if(this.dataset.p!=='custom')renderStats();}));
+q('cQ').addEventListener('click',()=>{const s=q('cS').value,e=q('cE').value;if(s&&e){cStart=parseD(s);cEnd=parseD(e);renderStats();}});
+
+(async()=>{try{const r=await window.storage.get('bunny_gs_url');if(r&&r.value)gsUrl=r.value;}catch{}renderHome();})();
+</script>
++n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const wkR=(d=new Date())=>{const dy=d.getDay(),df=dy===0?-6:1-dy,m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+df);return[m,new Date(m.getFullYear(),m.getMonth(),m.getDate()+6)];};
 const moR=(d=new Date())=>[new Date(d.getFullYear(),d.getMonth(),1),new Date(d.getFullYear(),d.getMonth()+1,0)];
 
-async function load(d){try{const r=await window.storage.get(dKey(d));return r&&r.value?JSON.parse(r.value):[];}catch{return[];}}
-async function save(d,r){try{await window.storage.set(dKey(d),JSON.stringify(r));}catch{}}
+// ── DATA LAYER: memory-first, storage for persistence ──
+const MEM={};
+async function load(d){
+  const k=dKey(d);
+  if(k in MEM)return JSON.parse(JSON.stringify(MEM[k]));
+  try{const r=await window.storage.get(k);if(r&&r.value){MEM[k]=JSON.parse(r.value);return JSON.parse(JSON.stringify(MEM[k]));}}catch{}
+  MEM[k]=[];return[];
+}
+async function save(d,recs){
+  const k=dKey(d);
+  MEM[k]=JSON.parse(JSON.stringify(recs)); // always update memory immediately
+  try{await window.storage.set(k,JSON.stringify(recs));}catch{}
+}
 async function addR(d,rec){const r=await load(d);r.push({...rec,_id:uid()});await save(d,r);}
 async function updR(d,id,rec){await save(d,(await load(d)).map(r=>r._id===id?{...rec,_id:id}:r));}
 async function delR(d,id){await save(d,(await load(d)).filter(r=>r._id!==id));}
