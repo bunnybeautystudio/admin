@@ -581,5 +581,19 @@ document.querySelectorAll('#ptog .pt').forEach(t=>t.addEventListener('click',fun
 document.querySelectorAll('.ptab').forEach(t=>t.addEventListener('click',function(){document.querySelectorAll('.ptab').forEach(p=>p.classList.toggle('on',p===this));q('dr').style.display=this.dataset.p==='custom'?'flex':'none';if(this.dataset.p!=='custom')renderStats();}));
 q('cQ').addEventListener('click',()=>{const s=q('cS').value,e=q('cE').value;if(s&&e){cStart=parseD(s);cEnd=parseD(e);renderStats();}});
 
-(async()=>{try{const r=await window.storage.get('bunny_gs_url');if(r&&r.value)gsUrl=r.value;}catch{}renderHome();})();
+(async()=>{
+  // 1. load settings
+  try{const r=await window.storage.get('bunny_gs_url');if(r&&r.value)gsUrl=r.value;}catch{}
+  // 2. pre-load ALL stored records into MEM before first render
+  try{
+    const list=await window.storage.list('bb2:');
+    if(list&&list.keys&&list.keys.length){
+      await Promise.all(list.keys.map(async k=>{
+        try{const r=await window.storage.get(k);if(r&&r.value)MEM[k]=JSON.parse(r.value);}catch{}
+      }));
+    }
+  }catch{}
+  // 3. now render with full data
+  renderHome();
+})();
 </script>
