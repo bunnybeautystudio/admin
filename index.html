@@ -317,28 +317,19 @@ const fmt$=n=>'$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const wkR=(d=new Date())=>{const dy=d.getDay(),df=dy===0?-6:1-dy,m=new Date(d.getFullYear(),d.getMonth(),d.getDate()+df);return[m,new Date(m.getFullYear(),m.getMonth(),m.getDate()+6)];};
 const moR=(d=new Date())=>[new Date(d.getFullYear(),d.getMonth(),1),new Date(d.getFullYear(),d.getMonth()+1,0)];
 
-// ── MEMORY-FIRST DATA LAYER ──
-const MEM={};
-async function load(d){
-  const k=dKey(d);
-  if(k in MEM)return JSON.parse(JSON.stringify(MEM[k]));
-  try{const r=await window.storage.get(k);if(r&&r.value){MEM[k]=JSON.parse(r.value);return JSON.parse(JSON.stringify(MEM[k]));}}catch(e){}
-  MEM[k]=[];return[];
+// ── SINGLE-KEY DATA LAYER (one key = all records) ──
+const SK='bunny_v4';
+let ALL=[];
+async function saveAll(){try{await window.storage.set(SK,JSON.stringify(ALL));}catch(e){console.log('save err',e);}}
+function rng(s,e){const a=td(s),b=td(e);return ALL.filter(r=>r._d>=a&&r._d<=b);}
+function moRecs(d){const a=td(new Date(d.getFullYear(),d.getMonth(),1)),b=td(new Date(d.getFullYear(),d.getMonth()+1,0));return ALL.filter(r=>r._d>=a&&r._d<=b);}
+function getPR(){
+  if(period==='today')return ALL.filter(r=>r._d===td(viewDate));
+  const[s,e]=period==='week'?wkR(viewDate):moR(viewDate);return rng(s,e);
 }
-async function save(d,recs){
-  const k=dKey(d);
-  MEM[k]=JSON.parse(JSON.stringify(recs));
-  try{await window.storage.set(k,JSON.stringify(recs));}catch(e){}
-}
-async function addR(d,rec){const r=await load(d);r.push({...rec,_id:uid()});await save(d,r);}
-async function updR(d,id,rec){await save(d,(await load(d)).map(r=>r._id===id?{...rec,_id:id}:r));}
-async function delR(d,id){await save(d,(await load(d)).filter(r=>r._id!==id));}
-async function rng(s,e){const all=[],d=new Date(s.getFullYear(),s.getMonth(),s.getDate()),end=new Date(e.getFullYear(),e.getMonth(),e.getDate());while(d<=end){(await load(new Date(d))).forEach(r=>all.push({...r,_d:td(new Date(d))}));d.setDate(d.getDate()+1);}return all;}
-async function moRecs(d){const all=[],n=dim(d);for(let i=1;i<=n;i++){const dd=new Date(d.getFullYear(),d.getMonth(),i);(await load(dd)).forEach(r=>all.push({...r,_d:td(dd)}));}return all;}
-async function getPR(){
-  if(period==='today'){return(await load(viewDate)).map(x=>({...x,_d:td(viewDate)}));}
-  const[s,e]=period==='week'?wkR(viewDate):moR(viewDate);return await rng(s,e);
-}
+async function addR(d,rec){ALL.push({...rec,_id:uid(),_d:td(d)});await saveAll();}
+async function updR(d,id,rec){const i=ALL.findIndex(r=>r._id===id);if(i>=0)ALL[i]={...rec,_id:id,_d:td(d)};await saveAll();}
+async function delR(d,id){ALL=ALL.filter(r=>r._id!==id);await saveAll();}
 function totals(recs){
   let inc=0,exp=0,cash=0,emt=0,rmb=0;const bySvc={},byCat={};
   recs.forEach(r=>{if(r.type==='expense'){exp+=amtN(r.amount);byCat[r.category||'其他']=(byCat[r.category||'其他']||0)+amtN(r.amount);}
@@ -362,7 +353,7 @@ q('dlgYes').onclick=()=>{q('dlg').classList.remove('on');delCb&&delCb();};
 
 // ── HOME ──
 async function renderHome(){
-  const recs=await getPR();
+  const recs=getPR();
   if(period==='today'){
     q('dDisp').textContent=fmtD(viewDate);
     q('dSub').textContent=isToday(viewDate)?'今天':'历史';
@@ -550,7 +541,8 @@ q('dlBtn').addEventListener('click',async()=>{
 });
 q('syncBtn').addEventListener('click',async()=>{
   if(!gsUrl){alert('请先在设置中填入 Google Apps Script URL');return;}
-  const recs=await moRecs(ledDate);q('syncBtn').textContent='同步中...';
+  const recs=await rng(s,e);
+  q('syncBtn').textContent='同步中...';
   let ok=0;for(const r of recs){try{await fetch(gsUrl+'?'+new URLSearchParams(r).toString(),{mode:'no-cors'});ok++;}catch{}}
   q('syncBtn').textContent=`✓ ${ok}条`;setTimeout(()=>{q('syncBtn').textContent='☁ Sheets';},2500);
 });
@@ -582,18 +574,8 @@ document.querySelectorAll('.ptab').forEach(t=>t.addEventListener('click',functio
 q('cQ').addEventListener('click',()=>{const s=q('cS').value,e=q('cE').value;if(s&&e){cStart=parseD(s);cEnd=parseD(e);renderStats();}});
 
 (async()=>{
-  // 1. load settings
   try{const r=await window.storage.get('bunny_gs_url');if(r&&r.value)gsUrl=r.value;}catch{}
-  // 2. pre-load ALL stored records into MEM before first render
-  try{
-    const list=await window.storage.list('bb2:');
-    if(list&&list.keys&&list.keys.length){
-      await Promise.all(list.keys.map(async k=>{
-        try{const r=await window.storage.get(k);if(r&&r.value)MEM[k]=JSON.parse(r.value);}catch{}
-      }));
-    }
-  }catch{}
-  // 3. now render with full data
+  try{const r=await window.storage.get(SK);if(r&&r.value){ALL=JSON.parse(r.value);console.log('loaded',ALL.length,'records');}}catch(e){console.log('load err',e);}
   renderHome();
 })();
 </script>
