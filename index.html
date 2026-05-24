@@ -297,7 +297,7 @@ const PB={Cash:'bc',EMT:'be',RMB:'br'};
 const SK='bunny_v5';
 
 // ── STATE ──
-let gsUrl='', fstep=0, editMode=false, editId=null, editDate=null;
+let gsUrl='https://script.google.com/macros/s/AKfycbx0IhUO50cLvzgFdEp3-EnH_j9DM8jW4SxqkxkuE-BW7ftElX100hauEQpaMdvpRroR/exec', fstep=0, editMode=false, editId=null, editDate=null;
 let viewDate=new Date(), ledDate=new Date(), period='today';
 let cStart=null, cEnd=null, delCb=null;
 let form={type:'',service:'',customer:'',category:'',note:'',amount:'',payment:''};
@@ -356,33 +356,38 @@ function totals(recs){
 const encode=d=>{try{return btoa(unescape(encodeURIComponent(JSON.stringify(d))));}catch{return '';}};
 const decode=s=>{try{return JSON.parse(decodeURIComponent(escape(atob(s.trim()))));}catch{return null;}};
 
-// ── SYNC TO SHEETS ──
+// ── SYNC: append-only, never overwrite ──
 async function syncSheets(){
-  if(!gsUrl){status('请先在设置中填 Apps Script URL','err');openSettings();return;}
-  status('同步中...','info');
+  if(!gsUrl){status('请先设置 Apps Script URL','err');openSettings();return;}
+  const newRecs=ALL.filter(r=>!r._synced);
+  if(!newRecs.length){status('✓ 没有新记录，已全部同步','info');return;}
+  status('同步 '+newRecs.length+' 条新记录...','info');
   try{
     const body=new URLSearchParams();
-    body.append('records',JSON.stringify(ALL));
+    body.append('action','append');
+    body.append('records',JSON.stringify(newRecs));
     await fetch(gsUrl,{method:'POST',mode:'no-cors',body});
-    status('✅ 已同步 '+ALL.length+' 条到 Sheets','ok');
-  }catch(e){status('❌ 同步失败','err');}
+    ALL.forEach(r=>{r._synced=true;});
+    await saveAll();
+    status('✅ 已同步 '+newRecs.length+' 条新记录','ok');
+  }catch(e){status('❌ 同步失败，请检查网络','err');}
 }
 
 // ── RESTORE FROM SHEETS ──
 async function restoreFromSheets(){
   if(!gsUrl){status('请先设置 Apps Script URL','err');openSettings();return;}
-  status('从 Sheets 读取中...','info');
+  status('从 Sheets 读取数据...','info');
   try{
-    const res=await fetch(gsUrl+'?action=read',{redirect:'follow'});
+    const res=await fetch(gsUrl+'?action=read');
     const data=await res.json();
     if(!Array.isArray(data))throw new Error('格式错误');
-    ALL=data;
+    ALL=data.map(r=>({...r,_synced:true}));
     await saveAll();
     renderHome();
     closeSheet();
-    status('✅ 已从 Sheets 恢复 '+ALL.length+' 条记录','ok');
+    status('✅ 已从 Sheets 恢复 '+ALL.length+' 条','ok');
   }catch(e){
-    status('❌ 恢复失败，请确认 Apps Script 已更新并重新部署','err');
+    status('❌ 恢复失败，请确认已重新部署 Apps Script','err');
   }
 }
 
@@ -727,16 +732,34 @@ document.addEventListener('click',function(e){
   if(t.id==='sheet'){closeSheet();return;}
 });
 
-// ── INIT ──
+// ── INIT: load from Sheets first, fallback to local storage ──
 (async()=>{
   try{const r=await window.storage.get('bunny_gsurl');if(r&&r.value)gsUrl=r.value;}catch{}
-  try{
-    const r=await window.storage.get(SK);
-    if(r&&r.value){
-      const parsed=JSON.parse(r.value);
-      if(Array.isArray(parsed)&&parsed.length){ALL=parsed;status('✓ 已加载 '+ALL.length+' 条记录','info');}
-    }
-  }catch{}
+  let loaded=false;
+  if(gsUrl){
+    try{
+      status('从 Sheets 加载数据...','info');
+      const res=await fetch(gsUrl+'?action=read');
+      const data=await res.json();
+      if(Array.isArray(data)&&data.length){
+        ALL=data.map(r=>({...r,_synced:true}));
+        loaded=true;
+        status('✅ 已从 Sheets 加载 '+ALL.length+' 条','ok');
+      }
+    }catch(e){}
+  }
+  if(!loaded){
+    try{
+      const r=await window.storage.get(SK);
+      if(r&&r.value){
+        const parsed=JSON.parse(r.value);
+        if(Array.isArray(parsed)&&parsed.length){
+          ALL=parsed;
+          if(ALL.length)status('✓ 本地已加载 '+ALL.length+' 条记录','info');
+        }
+      }
+    }catch{}
+  }
   renderHome();
 })();
 </script>
