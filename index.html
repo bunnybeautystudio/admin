@@ -356,7 +356,22 @@ function totals(recs){
 const encode=d=>{try{return btoa(unescape(encodeURIComponent(JSON.stringify(d))));}catch{return '';}};
 const decode=s=>{try{return JSON.parse(decodeURIComponent(escape(atob(s.trim()))));}catch{return null;}};
 
-// ── SYNC: append-only, never overwrite ──
+// ── LOAD FROM SHEETS → update ALL ──
+async function loadFromSheets(){
+  if(!gsUrl)return false;
+  try{
+    const res=await fetch(gsUrl+'?action=read');
+    const data=await res.json();
+    if(Array.isArray(data)&&data.length>0){
+      // merge: keep unsynced local records, replace synced ones with Sheets data
+      const unsyncedLocal=ALL.filter(r=>!r._synced);
+      ALL=[...data.map(r=>({...r,_synced:true})),...unsyncedLocal];
+      await saveAll();
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 async function syncSheets(){
   if(!gsUrl){status('请先设置 Apps Script URL','err');openSettings();return;}
   const newRecs=ALL.filter(r=>!r._synced);
@@ -395,9 +410,23 @@ async function restoreFromSheets(){
 function showPg(id){
   document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('on',p.id===id));
   document.querySelectorAll('.nt[data-s]').forEach(t=>t.classList.toggle('on',t.dataset.s===id));
-  if(id==='home')renderHome();
-  if(id==='stats')renderStats();
-  if(id==='ledger')renderLedger();
+  if(id==='home'){renderHome();return;}
+  if(id==='stats'){
+    status('从 Sheets 加载统计...','info');
+    loadFromSheets().then(ok=>{
+      if(ok)status('✅ 数据已更新','ok'); else status('使用本地数据','info');
+      renderStats();
+    });
+    return;
+  }
+  if(id==='ledger'){
+    status('从 Sheets 加载账本...','info');
+    loadFromSheets().then(ok=>{
+      if(ok)status('✅ 数据已更新','ok'); else status('使用本地数据','info');
+      renderLedger();
+    });
+    return;
+  }
 }
 
 // ── DIALOG ──
