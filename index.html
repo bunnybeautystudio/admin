@@ -297,7 +297,7 @@ const PB={Cash:'bc',EMT:'be',RMB:'br'};
 const SK='bunny_v5';
 
 // ── STATE ──
-let gsUrl='https://script.google.com/macros/s/AKfycbyIf-riGaphWvJs0VwOQYD3wwNFRJUL8e9h6fzvdFnTAYYLDTqNGWstY5MbzwG_9PfPvw/exec', fstep=0, editMode=false, editId=null, editDate=null;
+let gsUrl='https://script.google.com/macros/s/AKfycbxMKZgj9V0e5hMJ5lCJTICzmexEZy5vsdfciq0zsBXLy4hZyvwkdHJ1Msa4myxdpVEJ/exec', fstep=0, editMode=false, editId=null, editDate=null;
 let viewDate=new Date(), ledDate=new Date(), period='today';
 let cStart=null, cEnd=null, delCb=null;
 let form={type:'',service:'',customer:'',category:'',note:'',amount:'',payment:''};
@@ -356,15 +356,13 @@ function totals(recs){
 const encode=d=>{try{return btoa(unescape(encodeURIComponent(JSON.stringify(d))));}catch{return '';}};
 const decode=s=>{try{return JSON.parse(decodeURIComponent(escape(atob(s.trim()))));}catch{return null;}};
 
-// ── LOAD FROM SHEETS via POST ──
+// ── LOAD FROM SHEETS via GET ──
 async function loadFromSheets(){
   if(!gsUrl)return false;
   try{
-    // Use POST to avoid CORS redirect issues with GET
-    const body=new URLSearchParams({action:'read'});
-    const res=await fetch(gsUrl,{method:'POST',body,mode:'cors'});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const data=await res.json();
+    const res=await fetch(gsUrl+'?action=read');
+    const text=await res.text();
+    const data=JSON.parse(text);
     if(Array.isArray(data)&&data.length>0){
       const unsyncedLocal=ALL.filter(r=>!r._synced);
       const sheetsIds=new Set(data.map(r=>r._id));
@@ -373,10 +371,11 @@ async function loadFromSheets(){
       await saveAll();
       return true;
     }
+    return false;
   }catch(e){
     console.warn('Sheets load failed:',e.message);
+    return false;
   }
-  return false;
 }
 async function syncSheets(){
   if(!gsUrl){status('请先设置 Apps Script URL','err');openSettings();return;}
