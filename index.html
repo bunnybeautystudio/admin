@@ -297,7 +297,7 @@ const PB={Cash:'bc',EMT:'be',RMB:'br'};
 const SK='bunny_v5';
 
 // ── STATE ──
-let gsUrl='https://script.google.com/macros/s/AKfycbxMKZgj9V0e5hMJ5lCJTICzmexEZy5vsdfciq0zsBXLy4hZyvwkdHJ1Msa4myxdpVEJ/exec', fstep=0, editMode=false, editId=null, editDate=null;
+let gsUrl='https://script.google.com/macros/s/AKfycbzTPugmAfwyNNoIt8SyOEel2oQgPnDdvJWCKDDNSCD-CqmNs2qdmp4svxj9q3kUgy4UoQ/exec', fstep=0, editMode=false, editId=null, editDate=null;
 let viewDate=new Date(), ledDate=new Date(), period='today';
 let cStart=null, cEnd=null, delCb=null;
 let form={type:'',service:'',customer:'',category:'',note:'',amount:'',payment:''};
@@ -362,6 +362,7 @@ async function loadFromSheets(){
   try{
     const res=await fetch(gsUrl+'?action=read');
     const text=await res.text();
+    console.log('Sheets response:',text.slice(0,200));
     const data=JSON.parse(text);
     if(Array.isArray(data)&&data.length>0){
       const unsyncedLocal=ALL.filter(r=>!r._synced);
@@ -371,9 +372,13 @@ async function loadFromSheets(){
       await saveAll();
       return true;
     }
+    if(Array.isArray(data)&&data.length===0){
+      status('Sheets 暂无数据','info');
+    }
     return false;
   }catch(e){
     console.warn('Sheets load failed:',e.message);
+    status('读取失败: '+e.message,'err');
     return false;
   }
 }
